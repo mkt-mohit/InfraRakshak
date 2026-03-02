@@ -1,0 +1,204 @@
+name: CI/CD Pipeline - Streamlit to AWS ECR & EC2
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  AWS_REGION: us-east-1  # Change to your AWS region
+  ECR_REPOSITORY: infrarakshak-streamlit
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  build-and-push:
+    name: Build & Push Docker Image to ECR
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          echo "🔨 Building Docker image..."
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+                       -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+                       .
+          echo "✅ Docker image built successfully"
+
+      - name: Push Docker image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          echo "📤 Pushing Docker image to ECR..."
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "✅ Image pushed successfully!"
+          echo "Image URI: $ECR_REGISTRY/$ECR_REPOSITORY:latest"
+
+      - name: Output image details
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          echo "::notice::✅ Docker image built and pushed successfully"
+          echo "::notice::Image: $ECR_REGISTRY/$ECR_REPOSITORY:latest"
+          echo "::notice::Tag: $IMAGE_TAG"
+
+  deploy-to-ec2:
+    name: Deploy to EC2
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials for ECR
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Deploy to EC2 via SSH
+        env:
+          VM_IP: ${{ secrets.VM_IP }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+          SSH_HOST_KEY: ${{ secrets.SSH_HOST_KEY }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ env.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          # Setup SSH
+          mkdir -p ~/.ssh
+          echo "$SSH_HOST_KEY" >> ~/.ssh/known_hosts
+          echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          chmod 644 ~/.ssh/known_hosts
+
+          # Deploy via SSH
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ubuntu@$VM_IP << 'DEPLOY_EOF'
+          
+          echo "🚀 Starting deployment on EC2..."
+          
+          # Install Docker if not already installed
+          if ! command -v docker &> /dev/null; then
+            echo "📦 Installing Docker..."
+            curl -fsSL https://get.docker.com -o get-docker.sh
+            sudo sh get-docker.sh
+            sudo usermod -aG docker $USER
+            echo "✅ Docker installed"
+          else
+            echo "✅ Docker already installed"
+          fi
+          
+          # Install AWS CLI if not already installed
+          if ! command -v aws &> /dev/null; then
+            echo "📦 Installing AWS CLI..."
+            sudo apt-get update
+            sudo apt-get install -y awscli
+            echo "✅ AWS CLI installed"
+          else
+            echo "✅ AWS CLI already installed"
+          fi
+          
+          # Configure AWS credentials on EC2
+          echo "🔐 Configuring AWS credentials..."
+          mkdir -p ~/.aws
+          cat > ~/.aws/credentials << 'AWS_CREDS_EOF'
+          [default]
+          aws_access_key_id = $AWS_ACCESS_KEY_ID
+          aws_secret_access_key = $AWS_SECRET_ACCESS_KEY
+          AWS_CREDS_EOF
+          
+          cat > ~/.aws/config << 'AWS_CONFIG_EOF'
+          [default]
+          region = $AWS_REGION
+          output = json
+          AWS_CONFIG_EOF
+          
+          chmod 600 ~/.aws/credentials
+          chmod 644 ~/.aws/config
+          
+          # Login to ECR
+          echo "🔐 Logging into Amazon ECR..."
+          aws ecr get-login-password --region $AWS_REGION | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
+          
+          # Stop and remove old container
+          echo "🛑 Stopping old container..."
+          sudo docker stop infrarakshak-app 2>/dev/null || true
+          sudo docker rm infrarakshak-app 2>/dev/null || true
+          
+          # Pull latest image from ECR
+          echo "📥 Pulling latest image from ECR..."
+          sudo docker pull $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          
+          # Run new container
+          echo "🚀 Starting new container..."
+          sudo docker run -d \
+            --name infrarakshak-app \
+            -p 8501:8501 \
+            --restart unless-stopped \
+            $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          
+          # Wait for container to be healthy
+          echo "⏳ Waiting for container to be healthy..."
+          sleep 30
+          
+          # Check container status
+          echo "📊 Container Status:"
+          sudo docker ps -a | grep infrarakshak-app
+          
+          # Check if Streamlit is responding
+          if curl -f http://localhost:8501/_stcore/health &> /dev/null; then
+            echo "✅ Streamlit app is healthy and running!"
+          else
+            echo "⚠️ Streamlit health check failed, checking logs..."
+            sudo docker logs infrarakshak-app --tail 50
+          fi
+          
+          # Display access information
+          echo ""
+          echo "=========================================="
+          echo "✅ Deployment Complete!"
+          echo "=========================================="
+          echo "Access your Streamlit app at:"
+          echo "http://$VM_IP:8501"
+          echo "=========================================="
+          
+          DEPLOY_EOF
+
+      - name: Deployment Complete
+        env:
+          VM_IP: ${{ secrets.VM_IP }}
+        run: |
+          echo "::notice::✅ Deployment successful!"
+          echo "::notice::Access your app at: http://$VM_IP:8501"
