@@ -104,8 +104,15 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           chmod 644 ~/.ssh/known_hosts
 
-          # Deploy via SSH
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ubuntu@$VM_IP << 'DEPLOY_EOF'
+          # Deploy via SSH - Note: Removed single quotes to allow variable expansion
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ubuntu@$VM_IP bash -s << DEPLOY_EOF
+          
+          # Export variables for use in script
+          export AWS_REGION="${AWS_REGION}"
+          export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
+          export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
+          export ECR_REGISTRY="${ECR_REGISTRY}"
+          export ECR_REPOSITORY="${ECR_REPOSITORY}"
           
           echo "🚀 Starting deployment on EC2..."
           
@@ -114,33 +121,19 @@ jobs:
             echo "📦 Installing Docker..."
             curl -fsSL https://get.docker.com -o get-docker.sh
             sudo sh get-docker.sh
-            sudo usermod -aG docker $USER
+            sudo usermod -aG docker ubuntu
             echo "✅ Docker installed"
           else
             echo "✅ Docker already installed"
           fi
           
-          # Configure AWS credentials on EC2
-          echo "🔐 Configuring AWS credentials..."
-          mkdir -p ~/.aws
-          cat > ~/.aws/credentials << 'AWS_CREDS_EOF'
-          [default]
-          aws_access_key_id = $AWS_ACCESS_KEY_ID
-          aws_secret_access_key = $AWS_SECRET_ACCESS_KEY
-          AWS_CREDS_EOF
-          
-          cat > ~/.aws/config << 'AWS_CONFIG_EOF'
-          [default]
-          region = $AWS_REGION
-          output = json
-          AWS_CONFIG_EOF
-          
-          chmod 600 ~/.aws/credentials
-          chmod 644 ~/.aws/config
+          # Configure AWS credentials using environment variables
+          echo "🔐 Using AWS credentials from environment..."
+          export AWS_DEFAULT_REGION="\${AWS_REGION}"
           
           # Login to ECR
           echo "🔐 Logging into Amazon ECR..."
-          aws ecr get-login-password --region $AWS_REGION | sudo docker login --username AWS --password-stdin $ECR_REGISTRY
+          aws ecr get-login-password --region "\${AWS_REGION}" | sudo docker login --username AWS --password-stdin "\${ECR_REGISTRY}"
           
           # Stop and remove old container
           echo "🛑 Stopping old container..."
@@ -149,7 +142,7 @@ jobs:
           
           # Pull latest image from ECR
           echo "📥 Pulling latest image from ECR..."
-          sudo docker pull $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          sudo docker pull "\${ECR_REGISTRY}/\${ECR_REPOSITORY}:latest"
           
           # Run new container
           echo "🚀 Starting new container..."
@@ -157,31 +150,29 @@ jobs:
             --name infrarakshak-app \
             -p 8501:8501 \
             --restart unless-stopped \
-            $ECR_REGISTRY/$ECR_REPOSITORY:latest
+            "\${ECR_REGISTRY}/\${ECR_REPOSITORY}:latest"
           
-          # Wait for container to be healthy
-          echo "⏳ Waiting for container to be healthy..."
-          sleep 30
+          # Wait for container to start
+          echo "⏳ Waiting for container to start..."
+          sleep 15
           
           # Check container status
+          echo ""
           echo "📊 Container Status:"
-          sudo docker ps -a | grep infrarakshak-app
+          sudo docker ps | grep infrarakshak-app || echo "Container not running!"
           
-          # Check if Streamlit is responding
-          if curl -f http://localhost:8501/_stcore/health &> /dev/null; then
-            echo "✅ Streamlit app is healthy and running!"
-          else
-            echo "⚠️ Streamlit health check failed, checking logs..."
-            sudo docker logs infrarakshak-app --tail 50
-          fi
+          # Check container logs
+          echo ""
+          echo "📄 Recent Container Logs:"
+          sudo docker logs infrarakshak-app --tail 20 2>&1 || echo "No logs available"
           
           # Display access information
           echo ""
           echo "=========================================="
           echo "✅ Deployment Complete!"
           echo "=========================================="
-          echo "Access your Streamlit app at:"
-          echo "http://$VM_IP:8501"
+          echo "Access Streamlit app at:"
+          echo "http://43.205.236.114:8501"
           echo "=========================================="
           
           DEPLOY_EOF
