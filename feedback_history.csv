@@ -1,0 +1,4 @@
+timestamp,domain,device_id,severity,anomaly_score,label
+2026-03-02T06:25:37.899197Z,power,transformer-3,LOW,0.277,correct
+2026-03-02T14:57:12.993905Z,telecom,cell-tower-7,CRITICAL,0.812,false_alarm
+2026-03-02T14:58:39.167042Z,telecom,cell-tower-7,NORMAL,0.168,correct
