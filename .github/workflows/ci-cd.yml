@@ -120,16 +120,6 @@ jobs:
             echo "✅ Docker already installed"
           fi
           
-          # Install AWS CLI if not already installed
-          if ! command -v aws &> /dev/null; then
-            echo "📦 Installing AWS CLI..."
-            sudo apt-get update
-            sudo apt-get install -y awscli
-            echo "✅ AWS CLI installed"
-          else
-            echo "✅ AWS CLI already installed"
-          fi
-          
           # Configure AWS credentials on EC2
           echo "🔐 Configuring AWS credentials..."
           mkdir -p ~/.aws
