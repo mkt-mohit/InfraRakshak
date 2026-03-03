@@ -15,6 +15,7 @@ Modern critical infrastructure — power grids, telecom networks, water systems,
 
 > **InfraRakshak** proactively detects anomalies and provides Root Cause Analysis (RCA) using ML — before failures happen.
 
+this is the demo
 ---
 
 ## 🚀 Features
