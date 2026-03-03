@@ -1,110 +1,236 @@
-# InfraRakshak AI – AWS Free Tier MVP
+# 🛡️ InfraRakshak AI
+### Intelligent Anomaly Detection for Critical Infrastructure
 
-This project is a minimal MVP for InfraRakshak AI using the AWS Free Tier.
-
-## Components
-
-- **AWS Lambda**: Receives log events and runs simple anomaly + severity + time-to-failure logic.
-- **Amazon API Gateway**: Public HTTPS endpoint to send logs to Lambda.
-- **Amazon SNS**: Sends alerts (email/SMS) for critical events.
-- **Local Python client**: Simulates infrastructure logs and sends them to the API.
-
-## Local project layout
-
-- `app.py` – Streamlit dashboard for local simulation, analysis, and feedback.
-- `lambda/`
-  - `lambda_function.py` – AWS Lambda handler.
-- `client/`
-  - `send_log.py` – Script to simulate and send logs.
-- `requirements.txt` – Optional dependencies for local use.
-
-Configure AWS (API Gateway + Lambda + SNS), then put the deployed API URL into `client/send_log.py` and run it to test your pipeline.
+[![Live App](https://img.shields.io/badge/Live%20App-infrarakshak--ai.com-blue?style=for-the-badge)](https://www.infrarakshak-ai.com)
+[![Python](https://img.shields.io/badge/Python-3.10+-green?style=for-the-badge&logo=python)](https://python.org)
+[![Streamlit](https://img.shields.io/badge/Streamlit-App-red?style=for-the-badge&logo=streamlit)](https://streamlit.io)
+[![Docker](https://img.shields.io/badge/Docker-Containerised-blue?style=for-the-badge&logo=docker)](https://docker.com)
+[![AWS](https://img.shields.io/badge/AWS-EC2%20%7C%20ECR%20%7C%20Route53-orange?style=for-the-badge&logo=amazonaws)](https://aws.amazon.com)
 
 ---
 
-## Streamlit dashboard – flow and functionality
+## 📌 Problem Statement
 
-### Pages and overall flow
+Modern critical infrastructure — power grids, telecom networks, water systems, and smart cities — generates massive volumes of operational logs every second. Manual monitoring is slow, reactive, and expensive. Faults are detected only after failure, causing significant operational losses.
 
-- The dashboard in `app.py` has two views controlled by the **View** toggle at the top:
-  - **Simulation controls** – page for configuring and running simulations.
-  - **Analysis & insights** – page for exploring outputs, anomalies, and feedback.
-- When you click **Run simulation** on the Simulation page, synthetic events are generated and stored in `st.session_state["events"]`, and the app automatically switches to the **Analysis & insights** view.
+> **InfraRakshak** proactively detects anomalies and provides Root Cause Analysis (RCA) using ML — before failures happen.
 
-### Simulation controls (first page)
+---
 
-Controls live in the left sidebar:
+## 🚀 Features
 
-- **Domain**: `power`, `telecom`, `water`, or `smart_city`.
-- **Number of events per day to simulate**: how many log events are generated per simulated day.
-- **Number of days to simulate**: how many days of history to generate. Timestamps are spread across this many days.
-- **Anomaly probability**: controls how often anomalous (faulty) samples are generated versus healthy ones.
-- **Device ID**: domain‑specific identifier, passed into the simulator.
-- **Location type**: `urban`, `rural`, or `critical_facility`, used in the explanation text.
-- **Run simulation (button)**:
-  - Generates events using the `generate_*_log` functions.
-  - Each event is analyzed by `analyze_event` to compute `anomaly_score`, `severity`, and `time_to_failure_minutes`.
-  - Saves the analyzed list into `st.session_state["events"]`.
-  - Sets `st.session_state["active_page"] = "analysis"` to move you to the Analysis page.
+| Feature | Description |
+|---|---|
+| 🔍 Domain Selection | Choose from Power, Telecom, Water, or Smart City |
+| 📅 Time Range | Select number of days of log data to analyse |
+| 🤖 ML Anomaly Detection | Real-time anomaly detection on live log streams |
+| 📋 RCA Generation | Root Cause Analysis for every detected anomaly |
+| 🔁 Feedback Loop | User validates predictions; model retrains automatically |
+| ☁️ Production Deployed | Live on AWS EC2 with HTTPS via custom domain |
 
-### Analysis & insights (second page)
+---
 
-When there are events in session state, the Analysis page shows:
+## 🏗️ System Architecture
 
-- **Live Log & Anomaly View** (left column):
-  - A table of all simulated events with:
-    - `timestamp`, `domain`, `device_id`.
-    - `anomaly_score`, `severity`, `time_to_failure_minutes`.
-    - All raw metric fields (e.g., `voltage`, `temperature`, `latency_ms`, `pressure_bar`, etc.).
-  - A line chart of `anomaly_score` over time (indexed by `timestamp`).
-  - **Detected anomalies section**:
-    - Uses a tunable `anomaly_threshold` from `st.session_state["anomaly_threshold"]`.
-    - Filters the table to only rows with `anomaly_score >= anomaly_threshold`.
-    - Shows this filtered anomalies table below the main log, or a message if none.
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                       InfraRakshak Platform                      │
+│                                                                  │
+│  [Live Log Generator] ──► [ML Anomaly Engine] ──► [Dashboard]   │
+│                                  │                     │         │
+│                             [RCA Module]        [Feedback Loop]  │
+│                                                        │         │
+│                                            [Model Retraining]    │
+└──────────────────────────────────────────────────────────────────┘
+```
 
-- **Current Risk Summary** (right column):
-  - **System Health Score**: derived from the latest event’s `anomaly_score`.
-  - **Severity**: latest event’s severity label (`NORMAL`, `LOW`, `MEDIUM`, `CRITICAL`).
-  - **Time to Failure (min)**: latest event’s `time_to_failure_minutes`.
+| Block | Role |
+|---|---|
+| **Live Log Generator** | Simulates real-time operational logs for all supported domains |
+| **ML Anomaly Engine** | Core ML model that detects abnormal patterns in incoming logs |
+| **RCA Module** | Explains *why* an anomaly occurred for faster operator response |
+| **Streamlit Dashboard** | Web UI for domain selection, anomaly results, and RCA display |
+| **Feedback Loop** | Captures user-validated True/False labels to improve the model |
+| **Model Retraining** | Retrains with updated feedback and redeploys automatically |
+| **MLOps CI/CD** | One `git push` triggers build → ECR → EC2 → live in production |
 
-### Drill‑down buttons (second page)
+---
 
-Under the summary, three buttons operate on the **latest** event:
+## 👤 User Flow
 
-- **View root cause**:
-  - Shows **AI Root Cause Insight** using `latest["explanation"]["root_cause"]`.
-  - Text combines domain, location type, severity, time to failure, and a domain‑specific cause.
+```
+User Opens App
+     │
+     ▼
+Selects Domain  (Power / Telecom / Water / Smart City)
+     │
+     ▼
+Selects Number of Days to Analyse
+     │
+     ▼
+App Generates Dummy Live Logs (real-time simulation)
+     │
+     ▼
+ML Model Detects Anomalies
+     │
+     ▼
+Dashboard Shows: Anomaly List + RCA
+     │
+     ▼
+User Reviews Prediction
+     │
+   ┌─┴────────────────┐
+   │                  │
+ TRUE              FALSE
+(Confirmed)    (False Positive)
+   │                  │
+   └──────┬───────────┘
+          ▼
+   Feedback Recorded
+          │
+          ▼
+   git push → Model Retrained → Redeployed
+```
 
-- **View raw data**:
-  - Shows **Raw event data (latest)** as JSON via `st.json(latest)`.
-  - Includes the original `metrics`, computed fields (`anomaly_score`, `severity`, etc.), and explanation.
+---
 
-- **View solution**:
-  - Shows **Recommended Action / Solution** using `latest["explanation"]["recommendation"]`.
-  - This is the domain‑specific mitigation or operational advice.
+## 🔁 Feedback Loop & Continuous Learning
 
-### Feedback loop, learning, and threshold adaptation
+> 🔁 *"Human Feedback Today = Smarter Model Tomorrow"*
 
-- Session state + persisted fields:
-  - `st.session_state["feedback"]`: list of feedback entries.
-  - `st.session_state["anomaly_threshold"]`: current anomaly score threshold (initially `0.20`).
-  - Both feedback and the current threshold are also written to disk as:
-    - `feedback_history.csv`
-    - `anomaly_threshold.json`
-    so that the app remembers previous feedback across restarts.
+1. User reviews each flagged anomaly on the live dashboard
+2. Marks it as **TRUE** (real anomaly) or **FALSE** (false alarm)
+3. Feedback is stored as ground truth labels
+4. A single `git push` triggers the retraining pipeline
+5. New model is built, containerised, and pushed to production
+6. Every feedback cycle makes the model more accurate
 
-- **Mark prediction as correct (button)**:
-  - Appends a record to `feedback` with:
-    - `timestamp`, `domain`, `device_id`, `severity`, `anomaly_score`, and `label = "correct"` for the latest event.
-  - Decreases `anomaly_threshold` slightly (down to a minimum of `0.05`) and persists the new value.
-    - Effect: system becomes **more sensitive** and will classify slightly lower scores as anomalies in the anomalies table on all subsequent runs.
+---
 
-- **Mark as false alarm (button)**:
-  - Appends a record to `feedback` with the same fields but `label = "false_alarm"`.
-  - Increases `anomaly_threshold` slightly (up to a maximum of `0.95`) and persists the new value.
-    - Effect: system becomes **less sensitive**, reducing future false positives in the anomalies table for future runs as well.
+## ⚙️ MLOps Pipeline
 
-- **Feedback history (last 10 labels)**:
-  - When there is any feedback, a table shows the most recent 10 feedback entries (`correct` / `false_alarm`) to make the feedback loop transparent.
+> 🚀 *"One Push to Rule Them All — Code to Cloud in Seconds"*
 
-In summary, the dashboard simulates infra logs, computes anomaly scores and risk, lets you drill down into root cause, raw data, and recommended actions, and uses your feedback to adjust how strictly anomalies are flagged in subsequent analyses — even after restarting the app, thanks to the persisted feedback history and threshold.
+```
+Developer Laptop
+     │  git push (Step 1)
+     ▼
+GitHub Repository
+     │  CI trigger → build (Step 2)
+     ▼
+Docker Image (Built Locally) (Step 3)
+     │  docker push
+     ▼
+AWS ECR (Elastic Container Registry) (Step 4)
+     │  docker pull + run
+     ▼
+AWS EC2 Instance (Step 5)
+     │
+     ├── Route 53: infrarakshak-ai.com → EC2 Public IP (Step 6)
+     │
+     ├── NGINX Reverse Proxy (Step 7)
+     │        │
+     │        ▼
+     └── Streamlit Container (Live App) (Step 8)
+```
+
+| Step | Action |
+|---|---|
+| 1 | Code + feedback data committed and pushed from developer laptop |
+| 2 | GitHub triggers build pipeline |
+| 3 | Docker image built locally with updated model |
+| 4 | Image pushed to AWS ECR (Elastic Container Registry) |
+| 5 | EC2 pulls latest image and spins up new container |
+| 6 | Route 53 DNS record maps domain to EC2 public IP |
+| 7 | NGINX routes HTTPS traffic to Streamlit container port |
+| 8 | Live app serves updated model to end users |
+
+---
+
+## 🌐 Domains Supported
+
+| Domain | Example Anomalies Detected |
+|---|---|
+| ⚡ Power | Voltage spikes, load imbalance, outage prediction |
+| 📡 Telecom | Packet loss, latency spikes, tower downtime |
+| 💧 Water | Pressure drops, flow anomalies, pipe leak signals |
+| 🏙️ Smart City | Traffic congestion, sensor failures, energy waste |
+
+---
+
+## 🧰 Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend / UI | Streamlit |
+| ML Model | Scikit-learn / Custom Anomaly Detection |
+| Log Simulation | Python (synthetic log generator) |
+| Containerisation | Docker |
+| Container Registry | AWS ECR |
+| Cloud Compute | AWS EC2 |
+| Reverse Proxy | NGINX |
+| DNS & Domain | AWS Route 53 + `infrarakshak-ai.com` |
+| CI/CD | Git Push → Retrain → Redeploy |
+| RCA Engine | Rule-based + ML feature attribution |
+
+---
+
+## 🏁 Getting Started
+
+### Prerequisites
+```bash
+python >= 3.10
+docker
+git
+```
+
+### Run Locally
+```bash
+# Clone the repository
+git clone https://github.com/<your-username>/infrarakshak.git
+cd infrarakshak
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the Streamlit app
+streamlit run app.py
+```
+
+### Run with Docker
+```bash
+# Build the image
+docker build -t infrarakshak .
+
+# Run the container
+docker run -p 8501:8501 infrarakshak
+```
+
+---
+
+## 🌍 Live Demo
+
+🔗 **[https://www.infrarakshak-ai.com](https://www.infrarakshak-ai.com)**
+
+Fully deployed on AWS EC2 with HTTPS via Route 53 and NGINX reverse proxy.
+
+---
+
+## ✅ Key Differentiators
+
+- **End-to-End MLOps** — Laptop to production with a single `git push`
+- **Multi-Domain** — One platform for Power, Telecom, Water & Smart City
+- **Explainable AI** — Every anomaly comes with an RCA, not just a flag
+- **Continuous Learning** — Human feedback directly retrains the model
+- **Production Ready** — HTTPS domain, containerised, cloud-hosted
+- **Scalable** — Docker + AWS scales horizontally on demand
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+---
+
+*Built with ❤️ for Bharath | Powered by MLOps*
