@@ -9,7 +9,7 @@
 
 ---
 
-## 📌 Problem Statement
+##  Problem Statement
 
 Modern critical infrastructure — power grids, telecom networks, water systems, and smart cities — generates massive volumes of operational logs every second. Manual monitoring is slow, reactive, and expensive. Faults are detected only after failure, causing significant operational losses.
 
@@ -18,16 +18,16 @@ Modern critical infrastructure — power grids, telecom networks, water systems,
 this is the demo
 ---
 
-## 🚀 Features
+##  Features
 
 | Feature | Description |
 |---|---|
-| 🔍 Domain Selection | Choose from Power, Telecom, Water, or Smart City |
-| 📅 Time Range | Select number of days of log data to analyse |
-| 🤖 ML Anomaly Detection | Real-time anomaly detection on live log streams |
-| 📋 RCA Generation | Root Cause Analysis for every detected anomaly |
-| 🔁 Feedback Loop | User validates predictions; model retrains automatically |
-| ☁️ Production Deployed | Live on AWS EC2 with HTTPS via custom domain |
+|  Domain Selection | Choose from Power, Telecom, Water, or Smart City |
+|  Time Range | Select number of days of log data to analyse |
+|  ML Anomaly Detection | Real-time anomaly detection on live log streams |
+|  RCA Generation | Root Cause Analysis for every detected anomaly |
+|  Feedback Loop | User validates predictions; model retrains automatically |
+|  Production Deployed | Live on AWS EC2 with HTTPS via custom domain |
 
 ---
 
@@ -57,7 +57,7 @@ this is the demo
 
 ---
 
-## 👤 User Flow
+##  User Flow
 
 ```
 User Opens App
@@ -110,7 +110,7 @@ User Reviews Prediction
 
 ## ⚙️ MLOps Pipeline
 
-> 🚀 *"One Push to Rule Them All — Code to Cloud in Seconds"*
+>  *"One Push to Rule Them All — Code to Cloud in Seconds"*
 
 ```
 Developer Laptop
@@ -148,7 +148,7 @@ AWS EC2 Instance (Step 5)
 
 ---
 
-## 🌐 Domains Supported
+##  Domains Supported
 
 | Domain | Example Anomalies Detected |
 |---|---|
@@ -159,7 +159,7 @@ AWS EC2 Instance (Step 5)
 
 ---
 
-## 🧰 Tech Stack
+##  Tech Stack
 
 | Layer | Technology |
 |---|---|
@@ -209,7 +209,7 @@ docker run -p 8501:8501 infrarakshak
 
 ---
 
-## 🌍 Live Demo
+##  Live Demo
 
 🔗 **[https://www.infrarakshak-ai.com](https://www.infrarakshak-ai.com)**
 
@@ -217,7 +217,7 @@ Fully deployed on AWS EC2 with HTTPS via Route 53 and NGINX reverse proxy.
 
 ---
 
-## ✅ Key Differentiators
+##  Key Differentiators
 
 - **End-to-End MLOps** — Laptop to production with a single `git push`
 - **Multi-Domain** — One platform for Power, Telecom, Water & Smart City
@@ -228,7 +228,7 @@ Fully deployed on AWS EC2 with HTTPS via Route 53 and NGINX reverse proxy.
 
 ---
 
-## 📄 License
+##  License
 
 This project is licensed under the MIT License.
 
